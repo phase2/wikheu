@@ -1,0 +1,78 @@
+#!/bin/sh
+unamestr=`uname`
+if [[ "$unamestr" == 'Linux' ]]; then
+   script=`readlink -f $0`;
+   ap=`dirname $script`;
+elif [[ "$unamestr" == 'Darwin' ]]; then
+   ap=$(dirname $0);
+fi
+
+# -----------------------------------------------------------------------------------------------------
+#                                      Validate Input Data
+# -----------------------------------------------------------------------------------------------------
+
+usage="usage: 1. $0 platform
+       2. $0 site \"sitename.com\"
+
+  1. Releases new version of the platform (i.e. \"core + sites/all\")
+  2. Releases new version of one of the sites in a multisite.
+"
+
+if [ $# -eq 1 ]; then 
+  if [ $1 = "platform" ]; then
+    op="platform"
+  fi
+fi
+
+if [ $# -eq 2 ]; then
+  if [ $1 = "site" ]; then
+    op="site"
+    sitedomain=$2
+  fi
+fi
+
+if [ -z $op ]; then
+  echo "$usage"
+  exit
+fi
+
+# -----------------------------------------------------------------------------------------------------
+#                                      Configuration
+# -----------------------------------------------------------------------------------------------------
+
+
+username=$(id -un)
+timestamp=$(date +"%Y-%m-%d-%H%M%S")
+
+source "config.info"
+
+echo -n "SVN username? [default: $username]: "
+read username2
+
+if [[ "$username2" =~ ".*?[a-zA-Z0-9]+.*" ]] ; then
+  username=$username2
+fi
+
+#-- make sure the username has permissions/exists
+#-- We are using a little trick here, running svn uri check on path we know exists, so the only way it would not work
+#-- if authentication is botched.
+
+if [ ! "`$ap/dm-build-svn-uri-check -u $username -p \"$headfolder\"`" = "exists" ]; then  
+  echo "The username you indicated [$username] does not seem to have permissions on the repo [$headfolder]"
+  echo "Aborting..."
+  exit
+fi
+
+# -----------------------------------------------------------------------------------------------------
+#                                      Execute
+# -----------------------------------------------------------------------------------------------------
+
+case "$op" in
+'platform')
+  $ap/dm-build-platform -t "$timestamp" -u "$username" -r "$releasefolder" -s "$sitesfolder" -h "$headfolder"
+;;
+'site')
+  $ap/dm-build-site -t "$timestamp" -u "$username" -d "$sitedomain" -s "$sitesfolder" -h "$headfolder"
+;;
+esac
+  
