@@ -1,23 +1,19 @@
 #!/bin/sh
-unamestr=`uname`
-if [[ "$unamestr" == 'Linux' ]]; then
-   script=`readlink -f $0`;
-   ap=`dirname $script`;
-elif [[ "$unamestr" == 'Darwin' ]]; then
-   ap=$(dirname $0);
-fi
+script=`readlink -f $0`;
+ap=`dirname $script`;
 
-while getopts "t:u:d:s:h:" opt; do
+while getopts "d:t:u:r:s:h:" opt; do
   case $opt in
-    t) timestamp=$OPTARG;;
-    u) username=$OPTARG;;
     d) sitedomain=$OPTARG;;
-    s) sitesfolder=$OPTARG;;
-    h) headfolder=$OPTARG;;
+    t) timestamp=$OPTARG;;
+    u) auth=$OPTARG;;
+    r) releases_location=$OPTARG;;
+    s) sites_location=$OPTARG;;
+    h) trunk_location=$OPTARG;;    
   esac
 done
 
-if [ -z $username ] || [ -z $timestamp ] || [ -z $sitedomain ] || [ -z $sitesfolder ] || [ -z $headfolder ]; then
+if [ -z $sitedomain ] || [ -z "$auth" ] || [ -z $timestamp ] || [ -z $releases_location ] || [ -z $sites_location ] || [ -z $trunk_location ]; then
   echo "Invalid list of parameters for $0. Aborting..."
   exit
 fi
@@ -25,16 +21,17 @@ fi
 echo "START: releasing $sitedomain snapshot from Head as $timestamp"
 
 releasemsg="releasing $sitedomain site"
+dst_sitesfolder=$releases_location/websites
 
 
-if [ ! "`$ap/dm-build-svn-uri-check -u $username -p \"$headfolder/sites/$sitedomain\"`" = "exists" ]; then   
-  echo "Unknown site! $headfolder/sites/$sitedomain does not exist!"
+if [ ! "`$ap/dm-build-svn-uri-check -u "$auth" -p \"$sites_location/$sitedomain\"`" = "exists" ]; then   
+  echo "Unknown site! $sites_location/$sitedomain does not exist!"
   echo "Aborting"
   exit  
 fi
 
-if [ ! "`$ap/dm-build-svn-uri-check -u $username -p \"$sitesfolder/$sitedomain\"`" = "exists" ]; then  
-  echo "WARNING: $sitesfolder/$sitedomain does not exist!"
+if [ ! "`$ap/dm-build-svn-uri-check -u "$auth" -p \"$dst_sitesfolder/$sitedomain\"`" = "exists" ]; then  
+  echo "WARNING: $dst_sitesfolder/$sitedomain does not exist!"
   echo -n "This means this site has never been released before. Do you want to initialize and proceed? ( y/n ): "
     read answer
     if [ "$answer" = "n" ] || [ "$answer" = "N" ]
@@ -42,19 +39,19 @@ if [ ! "`$ap/dm-build-svn-uri-check -u $username -p \"$sitesfolder/$sitedomain\"
       echo "Aborting"
       exit
     else
-      svn mkdir  --username "$username"  -m "$releasemsg" $sitesfolder/$sitedomain > /dev/null 2>&1
+      svn mkdir $auth  -m "$releasemsg" $dst_sitesfolder/$sitedomain > /dev/null 2>&1
       echo "IMPORTANT: You need to release new platform version for the new site to get picked up!!!"
     fi
 fi
 
 
-svn cp  --username "$username" -m "$releasemsg" $headfolder/sites/$sitedomain $sitesfolder/$sitedomain/$timestamp > /dev/null 2>&1
+svn cp  $auth -m "$releasemsg" $sites_location/$sitedomain $dst_sitesfolder/$sitedomain/$timestamp > /dev/null 2>&1
 
-if [ "`$ap/dm-build-svn-uri-check -u $username -p \"$sitesfolder/$sitedomain/live\"`" = "exists" ]; then  
-  svn rm --username "$username" -m "$releasemsg" $sitesfolder/$sitedomain/live > /dev/null 2>&1
+if [ "`$ap/dm-build-svn-uri-check -u "$auth" -p \"$dst_sitesfolder/$sitedomain/live\"`" = "exists" ]; then  
+  svn rm $auth -m "$releasemsg" $dst_sitesfolder/$sitedomain/live > /dev/null 2>&1
 fi
 
-svn cp  --username "$username" -m "$releasemsg" $sitesfolder/$sitedomain/$timestamp $sitesfolder/$sitedomain/live > /dev/null 2>&1
+svn cp $auth -m "$releasemsg" $dst_sitesfolder/$sitedomain/$timestamp $dst_sitesfolder/$sitedomain/live > /dev/null 2>&1
 
 echo "completed..."
 exit

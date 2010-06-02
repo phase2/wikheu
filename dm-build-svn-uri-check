@@ -2,16 +2,16 @@
 
 while getopts "u:p:" opt; do
   case $opt in
-    u) username=$OPTARG;;
+    u) auth=$OPTARG;;
     p) svn_path=$OPTARG;;
   esac
 done
 
-if [ -z $username ] || [ -z $svn_path ]; then
+if [ -z "$auth" ] || [ -z "$svn_path" ]; then
   exit
 fi
 
-svn_info=`svn info --username $username --xml $svn_path 2> /dev/null`
+svn_info=`svn info $auth --xml $svn_path 2> /dev/null `
 
 if [[ "$svn_info" =~ ".*?<uuid>.*" ]]; then
   echo "exists"

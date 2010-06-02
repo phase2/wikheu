@@ -1,2 +1,4 @@
-releases_location=svn://svn.example.com/projroot/releases
-trunk_location=svn://svn.example.com/projroot/trunk
+releases_location=https://svn.example.com/projname/releases
+trunk_location=https://svn.example.com/projname/trunk
+core_symlink_name=docroot
+sites_location=https://svn.example.com/projname/trunk/sites

@@ -1,65 +1,70 @@
 #!/bin/sh
-unamestr=`uname`
-if [[ "$unamestr" == 'Linux' ]]; then
-   script=`readlink -f $0`;
-   ap=`dirname $script`;
-elif [[ "$unamestr" == 'Darwin' ]]; then
-   ap=$(dirname $0);
-fi
+script=`readlink -f $0`;
+ap=`dirname $script`;
 
-while getopts "t:u:r:s:h:" opt; do
+while getopts "c:t:u:r:s:h:" opt; do
   case $opt in
+    c) core_symlink_name=$OPTARG;;
     t) timestamp=$OPTARG;;
-    u) username=$OPTARG;;
-    r) releasefolder=$OPTARG;;
-    s) sitesfolder=$OPTARG;;
-    h) headfolder=$OPTARG;;
+    u) auth=$OPTARG;;
+    r) releases_location=$OPTARG;;
+    s) sites_location=$OPTARG;;
+    h) trunk_location=$OPTARG;;
   esac
 done
 
-if [ -z $username ] || [ -z $timestamp ] || [ -z $releasefolder ] || [ -z $sitesfolder ] || [ -z $headfolder ]; then
+if [ -z $core_symlink_name ] || [ -z "$auth" ] || [ -z $timestamp ] || [ -z $releases_location ] || [ -z $sites_location ] || [ -z $trunk_location ]; then
   echo "Invalid list of parameters for $0. Aborting..."
   exit
 fi
 
-tag_prefix="releases/platform/lf-"
+releasefolder=${releases_location}/platform/$timestamp
+dst_sitesfolder=$releases_location/websites
+tag_prefix="releases/platform/"
 
 echo "START: releasing platform under ${tag_prefix}${timestamp}"
 releasemsg="creating release $timestamp"
 
-svn mkdir --username "$username" -m "$releasemsg" $releasefolder > /dev/null 2>&1
 
-svn cp --username "$username" -m "$releasemsg" $headfolder/pressflow $releasefolder/pressflow > /dev/null 2>&1
-svn cp --username "$username" -m "$releasemsg" $headfolder/docroot $releasefolder/docroot > /dev/null 2>&1
+# figure-out the name of the current core folder
+rm -rf work
+svn co $auth -N $trunk_location work > /dev/null 2>&1
+drupal_core_folder=$(readlink work/$core_symlink_name)
+rm -rf work
 
-svn mkdir --username "$username" -m "$releasemsg" $releasefolder/sites > /dev/null 2>&1
+
+svn mkdir $auth -m "$releasemsg" $releasefolder > /dev/null 2>&1
+
+svn cp $auth -m "$releasemsg" $trunk_location/${drupal_core_folder} $releasefolder/${drupal_core_folder} > /dev/null 2>&1
+svn cp $auth -m "$releasemsg" $trunk_location/${core_symlink_name} $releasefolder/${core_symlink_name} > /dev/null 2>&1
+
+svn mkdir $auth -m "$releasemsg" $releasefolder/sites > /dev/null 2>&1
+
 
 rm -rf work
-svn co --username "$username" $releasefolder/sites work > /dev/null 2>&1
+svn co $auth $releasefolder/sites work > /dev/null 2>&1
 
 cd work
-svnlist=(`svn --username "$username" list $sitesfolder`)
+svnlist=(`svn $auth list $dst_sitesfolder`)
 
 externals=""
 for sitename in ${svnlist[@]}; do
-  if [ "`$ap/dm-build-svn-uri-check -u $username -p \"$sitesfolder/${sitename}live\"`" = "exists" ]; then  
-  	externals=$(echo -e "$externals \n ${sitename%/} $sitesfolder/${sitename}live")
+  if [ "`$ap/dm-build-svn-uri-check -u "$auth" -p \"$dst_sitesfolder/${sitename}live\"`" = "exists" ]; then  
+  	externals=$(echo -e "$externals \n ${sitename%/} $dst_sitesfolder/${sitename}live")
   else
-    echo "ERROR: $sitesfolder/${sitename}live IS MISSING, yet ${sitename%/} is present in $sitesfolder!"
+    echo "ERROR: $dst_sitesfolder/${sitename}live IS MISSING, yet ${sitename%/} is present in $dst_sitesfolder!"
     echo "Looks like a broken site release. Please fix, your platform release will proceed, but may be corrupt."    
   fi
 done
 
-#echo "$externals"
-
-svn propset --username "$username" svn:externals "$externals" . > /dev/null 
-svn update --username "$username" > /dev/null 2>&1
-svn commit --username "$username" -m "externals created. $releasemsg" . > /dev/null 2>&1
+svn propset $auth svn:externals "$externals" . > /dev/null 
+svn update $auth > /dev/null 2>&1
+svn commit $auth -m "externals created. $releasemsg" . > /dev/null 2>&1
 cd ..
 rm -rf work
 
-svn cp  --username "$username" -m "$releasemsg" $headfolder/sites/all $releasefolder/sites/all > /dev/null 2>&1
-svn cp  --username "$username" -m "$releasemsg" $headfolder/sites/default $releasefolder/sites/default > /dev/null 2>&1
+svn cp  $auth -m "$releasemsg" $sites_location/all $releasefolder/sites/all > /dev/null 2>&1
+svn cp  $auth -m "$releasemsg" $sites_location/default $releasefolder/sites/default > /dev/null 2>&1
 
 echo "completed..."
 exit

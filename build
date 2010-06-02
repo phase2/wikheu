@@ -49,15 +49,11 @@ if [ -f "$ap/config.info" ]; then
 	source "$ap/config.info"
 fi
 
-if [ -z $releasefolder ] || [ -z $headfolder ] || [ -z $sitesfolder ]; then
+if [ -z $trunk_location ] || [ -z $releases_location ] || [ -z $sites_location ]; then
   echo "Configuration file missing or not properly filled-out. Please fix."
 	echo "Aborting..."
 	exit
 fi
-
-headfolder=$trunk_location
-releasefolder=${releases_location}/platform/$timestamp
-sitesfolder=${releases_location}/projroot/releases/websites
 
 echo -n "SVN username? [default: $username]: "
 read username2
@@ -66,12 +62,21 @@ if [[ "$username2" =~ ".*?[a-zA-Z0-9]+.*" ]] ; then
   username=$username2
 fi
 
+echo -n "SVN password? "
+stty -echo
+read password
+stty echo
+echo ""
+
+
 #-- make sure the username has permissions/exists
 #-- We are using a little trick here, running svn uri check on path we know exists, so the only way it would not work
 #-- if authentication is botched.
 
-if [ ! "`$ap/dm-build-svn-uri-check -u $username -p \"$headfolder\"`" = "exists" ]; then  
-  echo "The username you indicated [$username] does not seem to have permissions on the repo [$headfolder]"
+auth="--username $username --password $password --non-interactive --no-auth-cache --trust-server-cert"
+
+if [ ! "`$ap/dm-build-svn-uri-check -u "$auth" -p $trunk_location`" = "exists" ]; then  
+  echo "The username you indicated [$username] does not seem to have permissions on the repo [$trunk_location]"
   echo "Aborting..."
   exit
 fi
@@ -82,10 +87,10 @@ fi
 
 case "$op" in
 'platform')
-  $ap/dm-build-platform -t "$timestamp" -u "$username" -r "$releasefolder" -s "$sitesfolder" -h "$headfolder"
+  $ap/dm-build-platform -t "$timestamp" -c "$core_symlink_name" -u "$auth" -r "$releases_location" -s "$sites_location" -h "$trunk_location"
 ;;
 'site')
-  $ap/dm-build-site -t "$timestamp" -u "$username" -d "$sitedomain" -s "$sitesfolder" -h "$headfolder"
+  $ap/dm-build-site -t "$timestamp" -u "$auth" -d "$sitedomain" -r "$releases_location" -s "$sites_location" -h "$trunk_location"
 ;;
 esac
   
