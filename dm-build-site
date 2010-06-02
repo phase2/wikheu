@@ -1,0 +1,60 @@
+#!/bin/sh
+unamestr=`uname`
+if [[ "$unamestr" == 'Linux' ]]; then
+   script=`readlink -f $0`;
+   ap=`dirname $script`;
+elif [[ "$unamestr" == 'Darwin' ]]; then
+   ap=$(dirname $0);
+fi
+
+while getopts "t:u:d:s:h:" opt; do
+  case $opt in
+    t) timestamp=$OPTARG;;
+    u) username=$OPTARG;;
+    d) sitedomain=$OPTARG;;
+    s) sitesfolder=$OPTARG;;
+    h) headfolder=$OPTARG;;
+  esac
+done
+
+if [ -z $username ] || [ -z $timestamp ] || [ -z $sitedomain ] || [ -z $sitesfolder ] || [ -z $headfolder ]; then
+  echo "Invalid list of parameters for $0. Aborting..."
+  exit
+fi
+
+echo "START: releasing $sitedomain snapshot from Head as $timestamp"
+
+releasemsg="releasing $sitedomain site"
+
+
+if [ ! "`$ap/dm-build-svn-uri-check -u $username -p \"$headfolder/sites/$sitedomain\"`" = "exists" ]; then   
+  echo "Unknown site! $headfolder/sites/$sitedomain does not exist!"
+  echo "Aborting"
+  exit  
+fi
+
+if [ ! "`$ap/dm-build-svn-uri-check -u $username -p \"$sitesfolder/$sitedomain\"`" = "exists" ]; then  
+  echo "WARNING: $sitesfolder/$sitedomain does not exist!"
+  echo -n "This means this site has never been released before. Do you want to initialize and proceed? ( y/n ): "
+    read answer
+    if [ "$answer" = "n" ] || [ "$answer" = "N" ]
+    then
+      echo "Aborting"
+      exit
+    else
+      svn mkdir  --username "$username"  -m "$releasemsg" $sitesfolder/$sitedomain > /dev/null 2>&1
+      echo "IMPORTANT: You need to release new platform version for the new site to get picked up!!!"
+    fi
+fi
+
+
+svn cp  --username "$username" -m "$releasemsg" $headfolder/sites/$sitedomain $sitesfolder/$sitedomain/$timestamp > /dev/null 2>&1
+
+if [ "`$ap/dm-build-svn-uri-check -u $username -p \"$sitesfolder/$sitedomain/live\"`" = "exists" ]; then  
+  svn rm --username "$username" -m "$releasemsg" $sitesfolder/$sitedomain/live > /dev/null 2>&1
+fi
+
+svn cp  --username "$username" -m "$releasemsg" $sitesfolder/$sitedomain/$timestamp $sitesfolder/$sitedomain/live > /dev/null 2>&1
+
+echo "completed..."
+exit

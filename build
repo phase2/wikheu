@@ -44,9 +44,17 @@ fi
 username=$(id -un)
 timestamp=$(date +"%Y-%m-%d-%H%M%S")
 
-source "config.info"
+if [ -f "$ap/config.info" ]; then
+	source "$ap/config.info"
+fi
 
-echo -n "SVN username? [default: $username]: "
+if [ -z $releasefolder ] || [ -z $headfolder ] || [ -z $sitesfolder ]; then
+  echo "Configuration file missing or not properly filled-out. Please fix."
+	echo "Aborting..."
+	exit
+fi
+
+echo "SVN username? [default: $username]: \c"
 read username2
 
 if [[ "$username2" =~ ".*?[a-zA-Z0-9]+.*" ]] ; then

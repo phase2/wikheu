@@ -1,0 +1,67 @@
+#!/bin/sh
+unamestr=`uname`
+if [[ "$unamestr" == 'Linux' ]]; then
+   script=`readlink -f $0`;
+   ap=`dirname $script`;
+elif [[ "$unamestr" == 'Darwin' ]]; then
+   ap=$(dirname $0);
+fi
+
+while getopts "t:u:r:s:h:" opt; do
+  case $opt in
+    t) timestamp=$OPTARG;;
+    u) username=$OPTARG;;
+    r) releasefolder=$OPTARG;;
+    s) sitesfolder=$OPTARG;;
+    h) headfolder=$OPTARG;;
+  esac
+done
+
+if [ -z $username ] || [ -z $timestamp ] || [ -z $releasefolder ] || [ -z $sitesfolder ] || [ -z $headfolder ]; then
+  echo "Invalid list of parameters for $0. Aborting..."
+  exit
+fi
+
+tag_prefix="releases/platform/lf-"
+
+echo "START: releasing platform under ${tag_prefix}${timestamp}"
+releasemsg="creating release $timestamp"
+
+svn mkdir --username "$username" -m "$releasemsg" $releasefolder > /dev/null 2>&1
+
+svn cp --username "$username" -m "$releasemsg" $headfolder/pressflow $releasefolder/pressflow > /dev/null 2>&1
+svn cp --username "$username" -m "$releasemsg" $headfolder/docroot $releasefolder/docroot > /dev/null 2>&1
+
+svn mkdir --username "$username" -m "$releasemsg" $releasefolder/sites > /dev/null 2>&1
+
+rm -rf work
+svn co --username "$username" $releasefolder/sites work > /dev/null 2>&1
+
+cd work
+svnlist=(`svn --username "$username" list $sitesfolder`)
+
+externals=""
+for sitename in ${svnlist[@]}; do
+  if [ "`$ap/dm-build-svn-uri-check -u $username -p \"$sitesfolder/${sitename}live\"`" = "exists" ]; then  
+  	externals=$(echo -e "$externals \n ${sitename%/} $sitesfolder/${sitename}live")
+  else
+    echo "ERROR: $sitesfolder/${sitename}live IS MISSING, yet ${sitename%/} is present in $sitesfolder!"
+    echo "Looks like a broken site release. Please fix, your platform release will proceed, but may be corrupt."    
+  fi
+done
+
+#echo "$externals"
+
+svn propset --username "$username" svn:externals "$externals" . > /dev/null 
+svn update --username "$username" > /dev/null 2>&1
+svn commit --username "$username" -m "externals created. $releasemsg" . > /dev/null 2>&1
+cd ..
+rm -rf work
+
+svn cp  --username "$username" -m "$releasemsg" $headfolder/sites/all $releasefolder/sites/all > /dev/null 2>&1
+svn cp  --username "$username" -m "$releasemsg" $headfolder/sites/default $releasefolder/sites/default > /dev/null 2>&1
+
+echo "completed..."
+exit
+
+
