@@ -1,3 +1,2 @@
-releasefolder=svn://svn.example.com/projroot/releases/platform/$timestamp
-headfolder=svn://svn.example.com/projroot/head
-sitesfolder=svn://svn.example.com/projroot/releases/websites
+releases_location=svn://svn.example.com/projroot/releases
+trunk_location=svn://svn.example.com/projroot/trunk

@@ -3,8 +3,9 @@ unamestr=`uname`
 if [[ "$unamestr" == 'Linux' ]]; then
    script=`readlink -f $0`;
    ap=`dirname $script`;
-elif [[ "$unamestr" == 'Darwin' ]]; then
-   ap=$(dirname $0);
+else
+   echo "This script is not, yet, supported on non-Linux systems. We apologize for the inconvenience."
+	 exit
 fi
 
 # -----------------------------------------------------------------------------------------------------
@@ -54,7 +55,11 @@ if [ -z $releasefolder ] || [ -z $headfolder ] || [ -z $sitesfolder ]; then
 	exit
 fi
 
-echo "SVN username? [default: $username]: \c"
+headfolder=$trunk_location
+releasefolder=${releases_location}/platform/$timestamp
+sitesfolder=${releases_location}/projroot/releases/websites
+
+echo -n "SVN username? [default: $username]: "
 read username2
 
 if [[ "$username2" =~ ".*?[a-zA-Z0-9]+.*" ]] ; then
